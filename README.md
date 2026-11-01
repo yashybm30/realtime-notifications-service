@@ -79,7 +79,7 @@ Bearer identity is verified with an explicit JWT algorithm, issuer, audience and
 
 ## Known limitations
 
-SMS is not enabled; Twilio is an optional extension. Inbox retention is 30 days after the latest write, with at most 100 records returned per request. High-volume deployments need bounded trimming and Redis persistence/backup policy. Cross-instance adapter behavior has a dedicated integration test when included in the suite.
+SMS is not enabled; Twilio is an optional extension. Inbox retention is bounded to the newest 1,000 entries and 30 days after the latest write, with at most 100 records returned per request. Redis writes and trimming are atomic. Production requires Redis persistence and backup policy. Cross-instance adapter behavior has a dedicated integration test when included in the suite.
 
 ## Roadmap
 

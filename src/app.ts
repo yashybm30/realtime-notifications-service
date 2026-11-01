@@ -42,13 +42,15 @@ class Api {
       createdAt: new Date().toISOString(),
     };
     const key = `inbox:${req.actor.tenantId}:${body.userId}`;
-    await this.realtime.redis
-      .multi()
-      .hset(`${key}:items`, note.id, JSON.stringify(note))
-      .zadd(key, Date.now(), note.id)
-      .expire(key, 30 * 86400)
-      .expire(`${key}:items`, 30 * 86400)
-      .exec();
+    await this.realtime.redis.eval(
+      "redis.call('HSET',KEYS[2],ARGV[1],ARGV[2]);redis.call('ZADD',KEYS[1],ARGV[3],ARGV[1]);local old=redis.call('ZRANGE',KEYS[1],0,-1001);for _,id in ipairs(old) do redis.call('ZREM',KEYS[1],id);redis.call('HDEL',KEYS[2],id) end;redis.call('EXPIRE',KEYS[1],2592000);redis.call('EXPIRE',KEYS[2],2592000);return 1",
+      2,
+      key,
+      `${key}:items`,
+      note.id,
+      JSON.stringify(note),
+      Date.now(),
+    );
     this.realtime.io
       .to(roomFor(req.actor, body.userId))
       .emit("notification", note);

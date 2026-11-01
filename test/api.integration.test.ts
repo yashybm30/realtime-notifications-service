@@ -83,3 +83,24 @@ test("cross-instance notification fanout and durable inboxes remain user-scoped"
     await secondary.close();
   }
 });
+
+test("active inboxes retain only their newest thousand records", async () => {
+  const { Realtime } = require("../dist/realtime");
+  const redis = app.get(Realtime).redis;
+  const user = randomUUID(),
+    key = `inbox:${tenant}:${user}`;
+  const entries = Array.from({ length: 1000 }, (_, i) => [
+    `old-${String(i).padStart(4, "0")}`,
+    JSON.stringify({ id: i, title: "old", read: false }),
+  ]);
+  await redis.hset(`${key}:items`, Object.fromEntries(entries));
+  await redis.zadd(key, ...entries.flatMap(([id]) => [0, id]));
+  await api
+    .post("/v1/notifications")
+    .set("Authorization", `Bearer ${token()}`)
+    .send({ userId: user, title: "Newest", body: "Bounded retention" })
+    .expect(201);
+  expect(await redis.zcard(key)).toBe(1000);
+  expect(await redis.hlen(`${key}:items`)).toBe(1000);
+  expect(await redis.hget(`${key}:items`, "old-0000")).toBeNull();
+});
